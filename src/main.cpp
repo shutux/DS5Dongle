@@ -21,6 +21,10 @@
 #if ENABLE_BATT_LED
 #include "battery_led.h"
 #endif
+#include "platform.h"
+#include "switch_pro.h"
+#include "ps5_auth.h"
+#include "combo.h"
 
 // Pico SDK speciifically for waiting on conditions
 #include "pico/critical_section.h"
@@ -46,6 +50,7 @@ volatile bool report_dirty = false;
 void interrupt_loop() {
     if (!tud_hid_ready()) return;
 
+    // DS5/DSE mode: send raw DS5 data
     // TODO: Refactor for better code reuse
     if (get_config().polling_rate_mode != 2) {
         if (!tud_hid_report(0x01, interrupt_in_data, 63)) {
@@ -84,6 +89,17 @@ void interrupt_loop() {
 void on_bt_data(CHANNEL_TYPE channel, uint8_t *data, uint16_t len) {
     // printf("[Main] BT data callback: channel=%u len=%u\n", channel, len);
     if (channel == INTERRUPT && data[1] == 0x31) {
+        // Switch Pro mode: parse DS5 data via struct
+        if (is_switch_mode()) {
+            USBGetStateData ds5{};
+            memcpy(&ds5, data + 3, sizeof(ds5));
+            switch_pro_on_ds5_input(ds5);
+            set_headset(data[56] & 1);
+            // Also update interrupt_in_data so combo_check can read buttons
+            memcpy(interrupt_in_data, data + 3, 63);
+            return;
+        }
+
         if ((data[56] & 1) != (interrupt_in_data[53] & 1)) {
             set_headset(data[56] & 1);
         }
@@ -118,13 +134,13 @@ void on_bt_data(CHANNEL_TYPE channel, uint8_t *data, uint16_t len) {
 uint16_t tud_hid_get_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t *buffer,
                                uint16_t reqlen) {
     (void) itf;
-    (void) report_id;
-    (void) report_type;
-    (void) buffer;
-    (void) reqlen;
 
     if (is_pico_cmd(report_id)) {
         return pico_cmd_get(report_id, buffer, reqlen);
+    }
+
+    if (is_switch_mode()) {
+        return switch_pro_get_report(report_id, buffer, reqlen);
     }
 
     std::vector<uint8_t> feature_data = get_feature_data(report_id, reqlen);
@@ -153,14 +169,16 @@ bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const *p_reques
 void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t const *buffer,
                            uint16_t bufsize) {
     (void) itf;
-    (void) report_id;
-    (void) report_type;
-    (void) buffer;
-    (void) bufsize;
 
     if (is_pico_cmd(report_id)) {
         printf("[HID] Receive 0xf6 setting config, funcid:0x%02X\n", buffer[0]);
         pico_cmd_set(report_id, buffer, bufsize);
+        return;
+    }
+
+    // Switch Pro Controller mode
+    if (is_switch_mode()) {
+        switch_pro_handle_hid_out(report_id, buffer, bufsize);
         return;
     }
 
@@ -210,11 +228,7 @@ int main() {
 #if !ENABLE_SERIAL
     sleep_ms(150);
     tud_disconnect();
-#endif
     board_init_after_tusb();
-#if ENABLE_SERIAL
-    stdio_usb_init();
-#endif
 
     if (cyw43_arch_init()) {
         printf("Failed to initialize CYW43\n");
@@ -248,24 +262,32 @@ int main() {
 
     config_load();
 
+    platform_detect_start();
+    switch_pro_init();
     bt_init();
     bt_register_data_callback(on_bt_data);
 
     audio_init();
     state_init();
 
-#if !ENABLE_SERIAL
     watchdog_enable(1000, true);
-#endif
 
     while (1) {
-#if !ENABLE_SERIAL
         watchdog_update();
-#endif
         cyw43_arch_poll();
         tud_task();
-        audio_loop();
-        interrupt_loop();
+
+        platform_detect_tick();
+        combo_check(interrupt_in_data);
+
+        if (!is_switch_mode()) {
+            audio_loop();
+        }
+        if (is_switch_mode()) {
+            switch_pro_task();
+        } else {
+            interrupt_loop();
+        }
 #if ENABLE_BATT_LED
         battery_led_tick();
 #endif

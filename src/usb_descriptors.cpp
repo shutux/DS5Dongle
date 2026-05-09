@@ -26,15 +26,10 @@
 #include "bsp/board_api.h"
 #include "tusb.h"
 #include "config.h"
-
-#ifndef ENABLE_SERIAL
-#define ENABLE_SERIAL 0
-#endif
+#include "platform.h"
+#include "switch_pro.h"
 
 bool ds_mode() {
-    if (get_config().controller_mode == 2) {
-        return !is_dse;
-    }
     return get_config().controller_mode == 0;
 }
 
@@ -84,15 +79,12 @@ tusb_desc_device_t desc_device =
 
     // Use Interface Association Descriptor (IAD) for Audio
     // As required by USB Specs IAD's subclass must be common class (2) and protocol must be IAD (1)
-#if ENABLE_SERIAL
-    .bDeviceClass = TUSB_CLASS_MISC,
+    /*.bDeviceClass = TUSB_CLASS_MISC,
     .bDeviceSubClass = MISC_SUBCLASS_COMMON,
-    .bDeviceProtocol = MISC_PROTOCOL_IAD,
-#else
+    .bDeviceProtocol = MISC_PROTOCOL_IAD,*/
     .bDeviceClass = 0x00,
     .bDeviceSubClass = 0x00,
     .bDeviceProtocol = 0x00,
-#endif
     .bMaxPacketSize0 = CFG_TUD_ENDPOINT0_SIZE,
 
     .idVendor = 0x054C,
@@ -102,7 +94,7 @@ tusb_desc_device_t desc_device =
 
     .iManufacturer = 0x01,
     .iProduct = 0x02,
-    .iSerialNumber = 0x00,
+    .iSerialNumber = 0x03,
 
     .bNumConfigurations = 0x01
 };
@@ -110,7 +102,18 @@ tusb_desc_device_t desc_device =
 // Invoked when received GET DEVICE DESCRIPTOR
 // Application return pointer to descriptor
 uint8_t const *tud_descriptor_device_cb(void) {
-    desc_device.idProduct = ds_mode() ? 0x0CE6 : 0x0DF2;
+    if (is_switch_mode()) {
+        desc_device.bDeviceClass = 0x00;
+        desc_device.bDeviceSubClass = 0x00;
+        desc_device.bDeviceProtocol = 0x00;
+        desc_device.idVendor = SWITCH_PRO_VID;
+        desc_device.idProduct = SWITCH_PRO_PID;
+        desc_device.bcdDevice = 0x0210;
+    } else {
+        desc_device.idVendor = 0x054C;
+        desc_device.idProduct = ds_mode() ? 0x0CE6 : 0x0DF2;
+        desc_device.bcdDevice = 0x0100;
+    }
     return reinterpret_cast<uint8_t const *>(&desc_device);
 }
 
@@ -121,25 +124,13 @@ uint8_t descriptor_configuration[] = {
     // --- CONFIGURATION DESCRIPTOR ---
     0x09, // bLength
     0x02, // bDescriptorType (CONFIGURATION)
-    U16_TO_U8S_LE(CONFIG_DESC_LEN_TOTAL), // wTotalLength
-    ITF_NUM_TOTAL, // bNumInterfaces
+    0xE3, 0x00, // wTotalLength: 227
+    0x04, // bNumInterfaces: 4
     0x01, // bConfigurationValue: 1
     0x00, // iConfiguration: 0
     0xC0, // bmAttributes: SELF-POWERED, NO REMOTE-WAKEUP
     0xFA, // bMaxPower: 500mA (250 * 2mA)
 
-#if ENABLE_SERIAL
-    // --- INTERFACE ASSOCIATION DESCRIPTOR: Audio function (interfaces 0-2) ---
-    0x08, // bLength
-    TUSB_DESC_INTERFACE_ASSOCIATION, // bDescriptorType
-    ITF_NUM_AUDIO_CONTROL, // bFirstInterface
-    0x03, // bInterfaceCount
-    0x01, // bFunctionClass: Audio
-    0x01, // bFunctionSubClass: Audio Control
-    0x00, // bFunctionProtocol
-    0x00, // iFunction
-
-#endif
     // --- INTERFACE DESCRIPTOR (0.0): Audio Control ---
     0x09, // bLength
     0x04, // bDescriptorType (INTERFACE)
@@ -392,6 +383,9 @@ uint8_t descriptor_configuration[] = {
 // Descriptor contents must exist long enough for transfer to complete
 uint8_t const *tud_descriptor_configuration_cb(uint8_t index) {
     (void) index; // for multiple configurations
+    if (is_switch_mode()) {
+        return get_switch_pro_config_desc();
+    }
     auto bInterval = 0x01;
     switch (get_config().polling_rate_mode) {
         case 0:
@@ -404,7 +398,7 @@ uint8_t const *tud_descriptor_configuration_cb(uint8_t index) {
             bInterval = 0x01;
             break;
     }
-    constexpr auto offset = CONFIG_DESC_LEN_BASE;
+    constexpr auto offset = sizeof(descriptor_configuration);
     descriptor_configuration[offset - 1] = bInterval;
     descriptor_configuration[offset - 8] = bInterval;
     if (ds_mode()) {
@@ -808,6 +802,9 @@ static_assert(sizeof(desc_hid_report_dse) == 0x01B5);
 // Descriptor contents must exist long enough for transfer to complete
 uint8_t const *tud_hid_descriptor_report_cb(uint8_t itf) {
     (void) itf;
+    if (is_switch_mode()) {
+        return get_switch_pro_hid_report_desc();
+    }
     if (ds_mode()) {
         return desc_hid_report_ds;
     }
@@ -818,6 +815,14 @@ uint8_t const *tud_hid_descriptor_report_cb(uint8_t itf) {
 // String Descriptors
 //--------------------------------------------------------------------+
 
+// String Descriptor Index
+enum {
+    STRID_LANGID = 0,
+    STRID_MANUFACTURER,
+    STRID_PRODUCT,
+    STRID_SERIAL,
+};
+
 // array of pointer to string descriptors
 static char const *string_desc_arr[] =
 {
@@ -825,9 +830,6 @@ static char const *string_desc_arr[] =
     "Sony Interactive Entertainment", // 1: Manufacturer
     NULL, // 2: Product
     NULL, // 3: Serials will use unique ID if possible
-#if ENABLE_SERIAL
-    "USB Serial", // 4: CDC interface
-#endif
 };
 
 static uint16_t _desc_str[60 + 1];
@@ -838,9 +840,14 @@ uint16_t const *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
     (void) langid;
     size_t chr_count;
 
-    if (ds_mode()) {
+    if (is_switch_mode()) {
+        string_desc_arr[1] = "Nintendo Co., Ltd.";
+        string_desc_arr[2] = "Pro Controller";
+    } else if (ds_mode()) {
+        string_desc_arr[1] = "Sony Interactive Entertainment";
         string_desc_arr[2] = "DualSense Wireless Controller";
-    }else {
+    } else {
+        string_desc_arr[1] = "Sony Interactive Entertainment";
         string_desc_arr[2] = "DualSense Edge Wireless Controller";
     }
 
@@ -851,7 +858,15 @@ uint16_t const *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
             break;
 
         case STRID_SERIAL:
-            chr_count = board_usb_get_serial(_desc_str + 1, 32);
+            if (is_switch_mode()) {
+                const char serial[] = "000000000001";
+                chr_count = sizeof(serial) - 1;
+                for (size_t i = 0; i < chr_count; i++) {
+                    _desc_str[1 + i] = serial[i];
+                }
+            } else {
+                chr_count = board_usb_get_serial(_desc_str + 1, 32);
+            }
             break;
 
         default:

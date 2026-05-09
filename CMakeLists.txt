@@ -88,6 +88,10 @@ add_executable(ds5-bridge
         src/config.cpp
         src/cmd.cpp
         src/state_mgr.cpp
+        src/platform.cpp
+        src/switch_pro.cpp
+        src/ps5_auth.cpp
+        src/combo.cpp
 )
 
 if (ENABLE_BATT_LED)
