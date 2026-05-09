@@ -176,7 +176,9 @@ void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t rep
         // DSE: Write Profile Block
         report_id == 0x60 ||
         report_id == 0x62 ||
-        report_id == 0x61) {
+        report_id == 0x61 ||
+        // PS5 auth: forward nonce to DS5 via BT
+        report_id == 0xF0) {
         set_feature_data(report_id,const_cast<uint8_t *>(buffer),bufsize);
         return;
     }

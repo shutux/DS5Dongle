@@ -7,13 +7,13 @@
 
 #include <cstdint>
 
-// PS5 authentication Feature Report IDs
-#define PS5_AUTH_SET_CHALLENGE    0x03  // PS5 → Pico: challenge nonce
-#define PS5_AUTH_GET_RESPONSE     0x04  // PS5 ← Pico: signed response
-#define PS5_AUTH_GET_STATUS       0x08  // PS5 ← Pico: auth status
+// PS5 authentication Feature Report IDs (same as PS4 auth protocol)
+#define PS5_AUTH_SET_CHALLENGE    0xF0  // PS5 → Pico: SET_AUTH_PAYLOAD (nonce, 5 chunks of 56/32 bytes)
+#define PS5_AUTH_GET_RESPONSE     0xF1  // PS5 ← Pico: GET_SIGNATURE_NONCE (signed response, 19 chunks of 56 bytes)
+#define PS5_AUTH_GET_STATUS       0xF2  // PS5 ← Pico: GET_SIGNING_STATE (0=ready, 16=signing)
 
 // Forward a PS5 authentication challenge to the connected DS5 via BT HID Control
-// report_id: 0x03
+// report_id: 0xF0
 // data: the challenge data (excluding report_id)
 // len: data length
 void ps5_auth_forward_challenge(uint8_t report_id, const uint8_t *data, uint16_t len);

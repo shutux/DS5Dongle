@@ -509,7 +509,10 @@ vector<uint8_t> get_feature_data(uint8_t reportId, uint16_t len) {
         // DSE: Set Profile Save?
         reportId == 0x63 ||
         reportId == 0x65 ||
-        reportId == 0x64
+        reportId == 0x64 ||
+        // PS5 auth: always request fresh signing state / signed response
+        reportId == 0xF1 ||
+        reportId == 0xF2
     ) {
         if (hid_control_cid != 0) {
             uint8_t get_feature[] = {0x43, reportId};
