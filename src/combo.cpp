@@ -1,9 +1,9 @@
 //
 // DS5 combo key detection for mode switching
 //
-// PS + Create + Cross(×)  → DS5 mode (controller_mode=0)
-// PS + Create + Circle(○) → DSE mode (controller_mode=1)
-// PS + Create + Square(□) → Switch mode (controller_mode=2)
+// PS + Options + D-pad Up    → DS5 mode (controller_mode=0)
+// PS + Options + D-pad Right → DSE mode (controller_mode=1)
+// PS + Options + D-pad Left  → Switch mode (controller_mode=2)
 //
 // Hold for 3 seconds to trigger. Saves to flash and reconnects USB.
 //
@@ -11,13 +11,14 @@
 #include "combo.h"
 #include "config.h"
 #include "platform.h"
+#include "bt.h"
 #include "device/usbd.h"
 #include "pico/time.h"
 #include <cstdio>
 
 // DS5 report byte layout:
-// [7] bit4=Square, bit5=Cross, bit6=Circle, bit7=Triangle
-// [8] bit4=Create
+// [7] bits0-3=D-pad (hat: 0=Up,1=NE,2=Right,3=SE,4=Down,5=SW,6=Left,7=NW,8=None)
+// [8] bit5=Options
 // [9] bit0=PS
 
 static constexpr uint32_t COMBO_HOLD_MS = 3000;
@@ -30,16 +31,17 @@ static uint8_t detect_combo(const uint8_t *ds5) {
     uint8_t btn1 = ds5[8];
     uint8_t btn2 = ds5[9];
 
-    bool ps     = btn2 & 0x01;
-    bool create = btn1 & 0x10;
+    bool ps      = btn2 & 0x01;
+    bool options = btn1 & 0x20;
 
-    if (!ps || !create) {
+    if (!ps || !options) {
         return 0xFF;
     }
 
-    if (btn0 & 0x20) return 0; // Cross → DS5
-    if (btn0 & 0x40) return 1; // Circle → DSE
-    if (btn0 & 0x10) return 2; // Square → Switch
+    uint8_t dpad = btn0 & 0x0F;
+    if (dpad == 0) return 0; // D-pad Up    → DS5
+    if (dpad == 2) return 1; // D-pad Right → DSE
+    if (dpad == 6) return 2; // D-pad Left  → Switch
 
     return 0xFF;
 }
@@ -75,6 +77,9 @@ bool combo_check(const uint8_t *ds5_report) {
     body.controller_mode = target;
     set_config(reinterpret_cast<const uint8_t *>(&body), sizeof(body));
     config_save();
+
+    // Disconnect BT so DS5 immediately goes to sleep
+    bt_disconnect();
 
     // Reconnect USB with new mode
     platform_detect_start();

@@ -23,9 +23,9 @@ While the DS5 controller is connected via Bluetooth, hold the following button c
 
 | Combo | Target Mode |
 |-------|-------------|
-| PS + Create + ×(Cross) | DS5 mode |
-| PS + Create + ○(Circle) | DSE mode |
-| PS + Create + □(Square) | Switch mode |
+| PS + Options + D-pad Up | DS5 mode |
+| PS + Options + D-pad Right | DSE mode |
+| PS + Options + D-pad Left | Switch mode |
 
 ## Getting Started
 
