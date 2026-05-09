@@ -9,6 +9,7 @@
 #include <cstring>
 
 #include "config.h"
+#include "platform.h"
 #include "device/usbd.h"
 #include "pico/time.h"
 
@@ -53,8 +54,9 @@ void pico_cmd_set(uint8_t report_id, uint8_t const *buffer, uint16_t bufsize) {
     }
     if (buffer[0] == 0x03) {
         printf("[CMD] Enter tud reconnect func\n");
+        platform_detect_start();
         tud_disconnect();
-        sleep_ms(150);
+        sleep_ms(1000);
         tud_connect();
     }
 }

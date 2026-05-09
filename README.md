@@ -13,8 +13,19 @@ This project enables the Raspberry Pi Pico2W to function as a Bluetooth bridge f
 - 🎮 Full DualSense connectivity via Pico2W
 - 🔊 Supports HD haptics (advanced vibration feedback)
 - 📡 Wireless Bluetooth bridging
+- 🔄 Multi-platform mode switching (DS5 / DSE / Switch)
 - ⚙️ Adjustable haptic gain via microphone volume
 - 🔕 Configurable LED and disconnection behaviors
+
+## Combo Key Mode Switching
+
+While the DS5 controller is connected via Bluetooth, hold the following button combinations for **3 seconds** to switch modes (auto-saves to flash and reconnects USB):
+
+| Combo | Target Mode |
+|-------|-------------|
+| PS + Create + ×(Cross) | DS5 mode |
+| PS + Create + ○(Circle) | DSE mode |
+| PS + Create + □(Square) | Switch mode |
 
 ## Getting Started
 

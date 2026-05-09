@@ -2,7 +2,9 @@
 // Created by awalol on 2026/3/4.
 //
 
-#include <array>
+#ifndef DS5_BRIDGE_UTILS_H
+#define DS5_BRIDGE_UTILS_H
+
 #include <cstdint>
 #include <iomanip>
 #include <iostream>
@@ -90,35 +92,16 @@ inline const char *opcode_to_str(const uint16_t opcode) {
     }
 }
 
-inline constexpr uint32_t crc32_table_entry(uint32_t index) {
-    for (unsigned bit = 0; bit < 8; ++bit) {
-        index = (index >> 1) ^ (0xEDB88320 & -(index & 1));
-    }
-    return index;
-}
-
-inline constexpr auto make_crc32_table() {
-    std::array<uint32_t, 256> table{};
-    for (uint32_t i = 0; i < table.size(); ++i) {
-        table[i] = crc32_table_entry(i);
-    }
-    return table;
-}
-
-inline constexpr auto crc32_lookup_table = make_crc32_table();
-
-inline uint32_t crc32_seeded(const uint8_t *data, size_t size, const uint32_t seed) {
-    uint32_t crc = ~seed;
+inline uint32_t crc32(const uint8_t* data, size_t size) {
+    uint32_t crc = ~0xEADA2D49;  // 0xA2 seed
 
     while (size--) {
-        crc = (crc >> 8) ^ crc32_lookup_table[(crc ^ *data++) & 0xff];
+        crc ^= *data++;
+        for (unsigned i = 0; i < 8; i++)
+            crc = ((crc >> 1) ^ (0xEDB88320 & -(crc & 1)));
     }
 
     return ~crc;
-}
-
-inline uint32_t crc32(const uint8_t* data, size_t size) {
-    return crc32_seeded(data, size, 0xEADA2D49); // 0xA2 seed
 }
 
 inline void fill_output_report_checksum(uint8_t* outputData,size_t len)
@@ -132,7 +115,15 @@ inline void fill_output_report_checksum(uint8_t* outputData,size_t len)
 
 inline uint32_t crc32_feature(const uint8_t *data, std::size_t size) {
     // https://github.com/rafaelvaloto/Dualsense-Multiplatform/blob/main/Source/Private/GCore/Utils/CR32.cpp
-    return crc32_seeded(data, size, 0x2060efc3); // 0x53 seed
+    uint32_t crc = ~0x2060efc3; // 0x53 seed
+
+    while (size--) {
+        crc ^= *data++;
+        for (unsigned i = 0; i < 8; i++)
+            crc = ((crc >> 1) ^ (0xEDB88320 & -(crc & 1)));
+    }
+
+    return ~crc;
 }
 
 inline void fill_feature_report_checksum(uint8_t *data, const size_t len) {
@@ -255,3 +246,5 @@ inline void print_hex(const uint8_t* data,size_t size) {
     }
     std::cout << std::endl;
 }
+
+#endif // DS5_BRIDGE_UTILS_H
