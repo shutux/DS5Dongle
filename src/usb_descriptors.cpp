@@ -815,14 +815,6 @@ uint8_t const *tud_hid_descriptor_report_cb(uint8_t itf) {
 // String Descriptors
 //--------------------------------------------------------------------+
 
-// String Descriptor Index
-enum {
-    STRID_LANGID = 0,
-    STRID_MANUFACTURER,
-    STRID_PRODUCT,
-    STRID_SERIAL,
-};
-
 // array of pointer to string descriptors
 static char const *string_desc_arr[] =
 {

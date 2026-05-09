@@ -230,6 +230,7 @@ int main() {
 #if !ENABLE_SERIAL
     sleep_ms(150);
     tud_disconnect();
+#endif
     board_init_after_tusb();
 
     if (cyw43_arch_init()) {
