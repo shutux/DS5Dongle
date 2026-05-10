@@ -208,6 +208,7 @@ int main() {
     };
     tusb_init(BOARD_TUD_RHPORT, &dev_init);
 #if !ENABLE_SERIAL
+    sleep_ms(150);
     tud_disconnect();
 #endif
     board_init_after_tusb();
