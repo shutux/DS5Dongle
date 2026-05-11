@@ -144,6 +144,33 @@ i.e. ***Update TinyUSB in the Pico SDK to the latest version***
 1. ***Update TinyUSB in the Pico SDK to the latest version***
 2. Compile using standard Pico SDK toolchain
 
+### Web Config Tool
+
+The web config tool lets you adjust controller mode, polling rate, haptic gain, LED behavior and more — right from your browser via WebHID.
+
+> **Browser requirement:** Chrome or Edge (WebHID is not supported in Firefox/Safari). Must be served over HTTPS or `localhost`.
+
+```bash
+# 1. Install dependencies
+cd ds5dongle-config-web
+npm install
+
+# 2. Start dev server
+npm run dev
+```
+
+Open http://localhost:5173 in Chrome/Edge, then:
+
+1. Click **Connect** and select the DS5 Bridge device from the popup
+2. Adjust settings as needed — changes are saved to the dongle's flash
+
+To build for deployment:
+
+```bash
+npm run build    # output in ds5dongle-config-web/dist/
+npm run preview  # preview the production build locally
+```
+
 
 ## Roadmap
 - Please check out [DS5Dongle plan](https://github.com/users/awalol/projects/5)
