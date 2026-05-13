@@ -69,6 +69,13 @@ endif ()
 
 
 
+option(ENABLE_WIFI_CONFIG "Enable WiFi AP mode web config server" OFF)
+if (ENABLE_WIFI_CONFIG)
+        set(ENABLE_WIFI_CONFIG_VALUE 1)
+else ()
+        set(ENABLE_WIFI_CONFIG_VALUE 0)
+endif ()
+
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
 
@@ -98,6 +105,14 @@ if (ENABLE_BATT_LED)
         target_sources(ds5-bridge PRIVATE src/battery_led.cpp)
 endif ()
 
+if (ENABLE_WIFI_CONFIG)
+        target_sources(ds5-bridge PRIVATE
+                src/wifi_server.cpp
+                src/dhcpserver.c
+                src/dnsserver.c
+        )
+endif ()
+
 # Cockos WDLResampler
 add_library(wdl_resampler STATIC
         lib/WDL/WDL/resample.cpp
@@ -116,7 +131,6 @@ target_compile_definitions(wdl_resampler PRIVATE
         WDL_RESAMPLE_TYPE=float
 )
 target_compile_definitions(ds5-bridge PRIVATE
-        CYW43_LWIP=0
         ENABLE_SERIAL=${ENABLE_SERIAL_VALUE}
         PICO_FLASH_ASSUME_CORE1_SAFE=1
         WDL_RESAMPLE_TYPE=float
@@ -128,7 +142,17 @@ target_compile_definitions(ds5-bridge PRIVATE
         ENABLE_BATT_LED=${ENABLE_BATT_LED_VALUE}
         SYS_CLOCK_KHZ=${SYS_CLOCK_KHZ_VALUE}
         DISABLE_SPEAKER_PROC=${DISABLE_SPEAKER_PROC_VALUE}
+        ENABLE_WIFI_CONFIG=${ENABLE_WIFI_CONFIG_VALUE}
 )
+if (ENABLE_WIFI_CONFIG)
+    target_compile_definitions(ds5-bridge PRIVATE
+            CYW43_LWIP=1
+    )
+else ()
+    target_compile_definitions(ds5-bridge PRIVATE
+            CYW43_LWIP=0
+    )
+endif ()
 
 option(ENABLE_WAKE_HID "Wake the Windows host on PS-button press" OFF)
 if(ENABLE_WAKE_HID)
@@ -173,13 +197,17 @@ target_link_libraries(ds5-bridge
         hardware_flash
         pico_btstack_classic
 #        pico_cyw43_arch_threadsafe_background
-        pico_cyw43_arch_poll
         pico_btstack_cyw43
         tinyusb_device
         tinyusb_board
         wdl_resampler
         opus
 )
+if (ENABLE_WIFI_CONFIG)
+    target_link_libraries(ds5-bridge pico_cyw43_arch_lwip_poll)
+else ()
+    target_link_libraries(ds5-bridge pico_cyw43_arch_poll)
+endif ()
 
 pico_add_extra_outputs(ds5-bridge)
 

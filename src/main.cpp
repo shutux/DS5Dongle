@@ -25,6 +25,9 @@
 #include "switch_pro.h"
 #include "ps5_auth.h"
 #include "combo.h"
+#if ENABLE_WIFI_CONFIG
+#include "wifi_server.h"
+#endif
 
 // Pico SDK speciifically for waiting on conditions
 #include "pico/critical_section.h"
@@ -238,6 +241,10 @@ int main() {
         return 1;
     }
     cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, false);
+
+#if ENABLE_WIFI_CONFIG
+    wifi_server_init();
+#endif
 
 #if ENABLE_BATT_LED
     battery_led_init();
