@@ -51,7 +51,7 @@ if (ENABLE_BATT_LED)
 else ()
         set(ENABLE_BATT_LED_VALUE 0)
 endif ()
-option(DISABLE_SPEAKER_PROC "Disable Speaker in controller" OFF)
+option(DISABLE_SPEAKER_PROC "Disable Speaker in controller (keeps haptics)" ON)
 if (DISABLE_SPEAKER_PROC)
         set(DISABLE_SPEAKER_PROC_VALUE 1)
 else ()
@@ -69,7 +69,7 @@ endif ()
 
 
 
-option(ENABLE_WIFI_CONFIG "Enable WiFi AP mode web config server" OFF)
+option(ENABLE_WIFI_CONFIG "Enable WiFi AP mode web config server" ON)
 if (ENABLE_WIFI_CONFIG)
         set(ENABLE_WIFI_CONFIG_VALUE 1)
 else ()
